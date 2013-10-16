@@ -78,19 +78,35 @@
 
         }
 
-//save data from textboxes to data base using ADO.net and with a Encrypted field.
-        private void tsBtnSave_Click(object sender, EventArgs e)
+//save new or updated data from textboxes to data base using ADO.net and with a Encrypted field.
+      private void tsBtnSave_Click(object sender, EventArgs e)
         {
             //Load data into data grid view: dgvUsers
             using (SqlConnection conn = new SqlConnection(connString))
             {
                 string pass = txtUserPass.Text;
-                string query = String.Format(@"insert into Users(UserFirstName, UserSecondName, UserBdate, UserName, UserPass, UserMail)
-                                               values(@userFirstName,@userSecondName,@userBDate,@userName,PwdEncrypt('{0}'),@userMail)",
-                                               pass);
+                string query = null;
+                if (userIdToUpdate == -1)
+                {//Inserting new row.
+                    query = String.Format(@"INSERT INTO Users(UserFirstName, UserSecondName, UserBdate, UserName, UserPass, UserMail)
+                                            VALUES(@userFirstName,@userSecondName,@userBDate,@userName,PwdEncrypt('{0}'),@userMail)",pass);
+                }
+                else
+                {//Updating an edited row.
+                    query = @"UPDATE Users SET UserFirstName=@userFirstName, UserSecondName=@userSecondName, 
+                              UserBdate=@userBDate, UserName=@userName , UserMail=@userMail
+                               WHERE UserID=@userID";                                                                                          
+                }
 
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
+
+                    if (userIdToUpdate != -1)
+                    {
+                        cmd.Parameters.Add(new SqlParameter("@userID", SqlDbType.Int));
+                        cmd.Parameters["@userID"].Value = userIdToUpdate;
+                    }
+
                     cmd.Parameters.Add(new SqlParameter("@userFirstName", SqlDbType.VarChar));
                     cmd.Parameters["@userFirstName"].Value = txtUserFirstName.Text;
 
@@ -114,7 +130,33 @@
                     this.usersTableAdapter.Fill(this.trainITDataSet.Users);
                 }
             }
+            setModeNormalForADO();
+            userIdToUpdate = -1;
         }
+
+
+//Delete a row that matches a condition: UserID
+       private void tsBtnDelete_Click(object sender, EventArgs e)
+        { //Save the row in table with the same UserName
+            using (SqlConnection conn = new SqlConnection(connString))
+            {
+                int userToDelete = Convert.ToInt32(txtUserID.Text);
+                string query = @"delete from Users where UserID=@userID";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.Add(new SqlParameter("@userID", SqlDbType.Int));
+                    cmd.Parameters["@userID"].Value = userToDelete;
+
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+
+                    //Update data in both data grids
+                    usersTempTable = LoadData(dgvUsers);
+                    this.usersTableAdapter.Fill(this.trainITDataSet.Users);
+                }
+            }
+        }        
 
 //Verify a given password with a encrypted one into a SQL database
         private void btnLoginCheck_Click(object sender, EventArgs e)
